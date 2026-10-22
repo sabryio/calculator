@@ -1,0 +1,7 @@
+# DEPENDENCIES.tsv — source library/deps → replacement (Step 3)
+
+# columns: source_dep | replacement | ratio | behavioral_differences
+third_party/boost?	none/engine-internal?	?	to verify at Step 3 walk
+cpprestsdk?	none	expected not present	inventory check at Step 3
+MSTest C++ (CalculatorUnitTests)	Rust cargo test (u11)	1:1 translation	oracle; protected
+MSTest C# (Calculator.Tests)	kept as-is (via seam)	0 changes	integration oracle; protected

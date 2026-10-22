@@ -1,0 +1,3 @@
+# STATE_MAP.tsv — one row per stateful field/handle/resource
+
+# columns: field | unit | owner | lifetime | cleanup | sharing | rust_strategy
