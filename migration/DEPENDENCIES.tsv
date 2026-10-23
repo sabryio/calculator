@@ -1,7 +1,33 @@
-# DEPENDENCIES.tsv — source library/deps → replacement (Step 3)
-
+# DEPENDENCIES.tsv — source library/deps → replacement (Step 3, from post-walk evidence)
 # columns: source_dep | replacement | ratio | behavioral_differences
-third_party/boost?	none/engine-internal?	?	to verify at Step 3 walk
-cpprestsdk?	none	expected not present	inventory check at Step 3
-MSTest C++ (CalculatorUnitTests)	Rust cargo test (u11)	1:1 translation	oracle; protected
-MSTest C# (Calculator.Tests)	kept as-is (via seam)	0 changes	integration oracle; protected
+MSVC SAL annotations (`_In_/_Inout_/_Frees_ptr_opt_…` via sal_cross_platform.h)	Rust ownership + &/&mut	tool-noise (annotations carry no runtime behavior)	dead in Rust; port MUST NOT re-express them as comments/assertions
+winerror_cross_platform.h (S_OK/SUCCEEDED/SCODE_CODE)	CalcError enum + #[repr(i32)] consts	1:1	code values kept verbatim (CalcErr.h:46-87); SCODE_CODE mask (0xFFFF) preserved in DisplayError mapping
+CalcErr.h CALC_E_* codes	Rust `CalcError` (thiserror)	1:1	variants named; E_BOUNDS History-only variant added (History.cpp:20)
+CRT calloc/free (zmalloc) [pageable allocation arena]	`Vec` growth (drop whole concept)	1:1	C++ arena becomes owned Vec; no custom allocator
+CRT memcpy/memmove digit shifts	`Vec::insert/remove/splice`	1:1	OOB was UB in C++; Rust uses API-checked versions
+CRT towupper (conv.cpp:606)	Rust `char::to_ascii_uppercase`	REPLACE(check)	SOURCE gates on radix range A..Z; ASCII-only domain verified at walk — non-ASCII upper behavior never exercised
+std wstring/wstring_view	std String/str	1:strat fundment	UTF-16→UTF-8 at seam; char-indexed algorithms → Vec<char> where index matters
+std wstringstream fixed/precision/scientific	Rust `format!` with precision spec	1:1 rounding-diff проверить	MSVC iostream rounding (default = round-half-even) vs Rust format (round-half-even) — believed equal; property-test pin added for NumberFormattingUtils
+std wregex (IsNumberInvalid, scidisp.cpp:143-193)	manual digit-class predicate (port by hand)	1:n SOURCE regex → Rust matchers 직	String predicate ported literally; no crate regex (adds dep weight for 3 fixed shapes); property-test parity
+std unordered_map<wstring_view,_>	std HashMap<String,_>	1:1	iterator order differs (C++ hash order unspecified); no observed order dependence
+std unsorted_map<Unit,…> + custom UnitHash	HashMap<Unit,…> w/ custom Hash/Eq on id	1:1	id-only collision semantics preserved (UnitConverter.h:64-117)
+std list<PNUMBER> (num.cpp:410 _divnum cleanup list)	Vec<Number> local	1:1	ownership recomputed; iter-destroy pattern gone
+std shared_ptr/unique_ptr	owned fields / enum of engines	multi	programmer-mode null history → Option
+std enable_shared_from_this<UnitConverter>	struct self-pass or Arc<Self>	multi	use-case never exercised inside engine logic (walk: no use found in UnitConverter.cpp) → drop with note
+std dynamic_pointer_cast (UnitConverter.cpp:583-586 currency-loader downcast)	enum match on loader kind	1:1	no RTTI in Rust; NOTE the dynamic_cast sites in ExpressionCommandWrapper live in the INTEROP layer, out of engine scope — not part of this map
+std sort with partial comparator (UnitConverter.cpp:637-646, 673-682 suggested values)	stable Vec::sort_by + amplitude/sign tiebreak ported	1:1-with-difference	SOURCE std::sort is UNSTABLE and its comparator does not break all ties → relative order of equal-magnitude distinct units is implementation-defined in C++; Rust stable sort yields a DIFFERENT but equally-valid order. Accepted divergence; add a golden test pinning OUR order
+<cmath> ceil/log2 (support.cpp:139 — inside the ChangeConstants gate!), log10/abs (UnitConverter.cpp:626, 637-645), log10 (NumberFormattingUtils.cpp:53)	f64::ceil/log2/log10/abs	1:1-with-pin	a 1-ulp log2 wobble flips which branch the support.cpp:145 gate takes → add pinned-constant tests: expected g_ratio (9 for radix 10) and the rebuilt constants for radix 2..16 asserted as exact tables, not recomputed-computed claims
+std array fixed buffers	[ T; N ]	1:1	cap constants (25, 4) preserved
+std vector	 Vec	1:1
+std tuple/structured bindings	( tuples, patterns )	1:1
+std random_device/mt19937/uniform_real_distribution	rand crate (StdRng::from_entropy) + custom uniform f64 sampler	REPLACE	distribution algorithm nonzero standard? uniform_real_distribution is implementation-defined (MSVC-specific); oracle only asserts range (0..1) — RECORD: numeric-identical RNG is NOT promised in tests
+std out_of_range/cassert (.at())	Result<_, CalcError::EBounds> / debug asserts	adapt	Two UBs found (RemoveAtEnd on empty, SetAt unbounded) → E_BOUNDS per LESSONS rule
+PPL concurrency::task<> / .then / task_from_result  (UnitConverter currency)	synchronous trait methods (loader trait) + caller-side async in Tauri layer	ARCH-replace	C++ promise-continuation choreography retargeted: engine exposes sync trait; networking/futures live outside engine (engine-only consumer contract). Logged to owner (divergence record Decision-1 in session log)
+<wintypes> wcout/wstringstream under GEN_CONST (support.cpp:32-39)	not ported (constant-generation build tool)	0 dropping	kept as a doc note (rationale: regeneration tool, not product)
+MSTest C++ (CalculatorUnitTests, 5 files)	cargo tests under engine/tests/<cpp>.rs	1:1	oracle: verbatim per-test translation; ORACLE.md rules
+Calculator.Tests (C#)	reference-only	0	per ORACLE.md: OUT OF SCOPE
+CalculatorUITests (WinAppDriver)	none (UI → Tauri tests)	0	OUT OF SCOPE
+Boost/etc.	present: none third_party — engine is std-only (walk verified)	—	historical plan placeholder cleared
+<wclimits> UCHAR_MAX (CalculatorManager.cpp:4) — DEAD include, symbol unused	none (drop)	0	no port action; recorded so porters don't invent one
+<iomanip> (scicomm/pch) — no setfill/setw usage found	none (drop)	0	dead include
+<intsafe.h> (pch.h) — superseded by conv.cpp local shim Calc_ULongAdd/Calc_ULongMult/Calc_UInt32x32To64 (conv.cpp:45-100)	Rust checked u32/u64 arithmetic	1:1	overflow branch throws CALC_E_INVALIDRANGE (conv.cpp:209-211) — the InvalidRange variant's only producer

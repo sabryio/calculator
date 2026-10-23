@@ -1,3 +1,54 @@
-# STATE_MAP.tsv — one row per stateful field/handle/resource
-
+# STATE_MAP.tsv — one row per stateful field/handle/resource (Step 3 draft, from CCEngine walk)
 # columns: field | unit | owner | lifetime | cleanup | sharing | rust_strategy
+# Evidence: file:line refs in rust_strategy column; C++ lifetimes preserved, never "improved".
+
+C_g_ftrueinfinite	Ratpak	Context(process)	process-wide; ChangeConstants writes	never freed	Context (explicit)	Context bool field; cleared by changeConstants recompute (support.cpp:147)
+C_g_ratio	Ratpak	Context(process)	process-wide; ChangeConstants writes	never freed	Context	Context i32; write site support.cpp:139
+C_ratpak_constant_table[~40]	Ratpak	Context(process)	lazy-built per ChangeConstants gate; entries rebuilt when gate passes	destroy before reassign (support.cpp:141-143, 261-268)	Context only	Context: Option-field pattern with eager change_constants at construction (PORTING §7 invariant); NOTE support.cpp:160-161 inits rat_word TWICE, rat_byte only via else path (support.cpp:641-642) — port preserves branch order
+C_cbitsofprecision	Ratpak	Context(process)	process-wide static (support.cpp:31/68); gate for all rebuilds	none	Context	Context i32 seeded 9*10*32 (non-GEN_CONST build)
+C_g_decimalSeparator	Ratpak	Context(process)	process-wide; SetDecimalSeparator on ctor AND every SettingsChanged (calc.cpp:157-199, call at 163)	never	Context	Context char field
+CEngine_m_currentVal	u05/u06	CCalcEngine	instance; ctor zero (calc.cpp:79)	mutated everywhere; IDC_CLEAR (scicomm.cpp:434-461) does NOT assign m_currentVal — it is reset only through the ClearTemporaryValues→DisplayNum→input path	value owned	Rational field; TEST: C-clears-via-input-path contract
+CEngine_m_lastVal	u05/u06	CCalcEngine	instance; ctor zero	scicomm.cpp:201..489-506; C resets to 0 (scicomm.cpp:442)	value owned	Rational field
+CEngine_m_holdVal	u05/u06	CCalcEngine	instance; ctor zero	scicomm.cpp:204,844,894; NOT reset by IDC_CLEAR (scicomm.cpp:434-461)	value owned	Rational field; TEST: C-does-not-clear contract
+CEngine_m_memoryValue	u05/u06	CCalcEngine	instance Option	ctor seeds NON-NULL zero (make_unique<Rational>, calc.cpp:77); PersistedMemObject() getter LEAVES IT NULL (calc.cpp:149-150) until manager replaces it (CalculatorManager.cpp:315-318); MPLUS/MMINUS paths deref *m_memoryValue (scicomm.cpp:752-762 — C++ null-deref territory)	value owned	Option<Rational>; the deref-after-nullable-get is a SOURCE hazard — Rust becomes panic-on-None which is a NEW behavior class; cover with explicit test + LESSONS rule 2 (record, decide panic vs Err at pilot)
+CEngine_m_input	u05/u06	CCalcEngine	instance value	Clear() on record enter/exit (scicomm.cpp:85,165); digit/bs/dec paths	value owned	CalcInput struct field
+CEngine_m_parenVals[25]+m_nOp[25]	u05/u06	CCalcEngine	instance fixed arrays	push IDC_OPENP (scicomm.cpp:587); pop closeparen; contents PERSIST after C	value owned, unshared	[Rational;25]+[i32;25]+top index; no bulk clear
+CEngine_m_precedenceVals[25]+m_nPrecOp[25]	u05/u06	CCalcEngine	instance	fixed push/pop (scicomm.cpp:285-296,608-652); contents persist	value owned, unshared	[Rational;25]+[i32;25]+count fields
+CEngine_m_nOpCode/m_nPrevOpCode/m_nLastCom/m_nTempCom	u05/u06	CCalcEngine	instance ints	saved/rolled-back (error path scicomm.cpp:65-72)	value owned	i32 fields
+CEngine_m_bRecord/m_bError/m_bInv/m_bChangeOp/m_bNoPrevEqu/m_bSetCalcState	u05/u06	CCalcEngine	instance bools	per-command; ClearTemporaryValues clears only some (scicomm.cpp:84-89)	value owned	bool fields; exact clear-list per-command
+CEngine_m_radix/m_precision/m_cIntDigitsSav/m_numwidth/m_angletype/m_nFE/m_dwWordBitWidth	u05/u06	CCalcEngine	instance settings	set on mode/radix change (sciset.cpp:35-67)	value owned	enum/i32/u32 fields
+CEngine_m_carryBit	u05/u06	CCalcEngine	instance u64	set ROLC/RORC (scifunc.cpp:66-94); reset ONLY by C (scicomm.cpp:449)	value owned	u64 field; TEST: survives ops, cleared by C
+CEngine_m_chopNumbers[4]/m_maxDecimalValueStrings[4]	u05/u06	CCalcEngine	instance consts (ctor)	never (calc.cpp:113-143)	value owned	[Rational;4]/[String;4] built in ctor using Context table (rat_qword..rat_byte)
+CEngine_m_HistoryCollector	u05/u06	embedded value in CCalcEngine	ctor-died instance	composited; ReinitHistory (History.cpp:290-302)	value owned	struct field; internal index state per §History
+History_m_spTokens/m_spCommands	u06	CHistoryCollector	line-scoped shared buffers; COMPLETELY nulled at CompleteHistoryLine (History.cpp:298-299)	cleared per line	dbg-shared with display snapshots	Option<Vec<Token>>+Option<Vec<IExprCommand>>; null shelf preserved (not just emptied)
+History_m_iCurLineHistStart/m_lastOpStartIndex/m_lastBinOpStartIndex	u06	CHistoryCollector	line-scoped int indexes with -1 sentinel	reset per line	value owned	i32 + Option-free sentinel semantics preserved
+History_m_operandIndices[25]+m_curOperandIndex	u06	CHistoryCollector	operand-start stack for parens	push/pop with paren state	value owned	[i32;25]+index
+CEngine_s_engineStrings	u05/u06	process static map	loaded once InitialOneTimeOnlySetup (calc.cpp:46-53); MUTATED by SettingsChanged (calc.cpp:189)	shared with all engine instances	Arc<RwLock<HashMap<String,String>>> owned by manager, shared
+CEngine_gldPrevious	u05/u06	process static	per-PROCESS cache (all 3 engines share by C++ design, scidisp.cpp:39-51)	persist for process lifetime	Arc<Mutex<LastDisp>> created by CalculatorManager and shared
+Mgr_threeEngines	u08	CalculatorManager	lazy unique_ptr per mode (h:50-52)	built once per mode; cleared by commands only	real pointer switch per mode	EnumModeEngine slot pattern (enum of boxed engines) + Option
+Mgr_m_currentCalculatorEngine	u08	CalculatorManager	raw pointer = active mode slot	repainted on mode switch	shares with slotborrowed enum index/`Rc`-free	borrow of mode slot
+Mgr_m_memorizedNumbers	u08	CalculatorManager	instance vector; cap 100	insert(begin); erase(index)管理等	value owned	Vec<Rational>; exact cap test
+Mgr_m_persistedPrimaryValue	u08	CalculatorManager	instance	Rational; LoadPersistedPrimaryValue writes value owned	Rational field
+Mgr_history (_phist/m_pStdHistory/m_pSciHistory)	u08	CalculatorManager	shared_ptr lists (max 20)	tied to mode; programmer null	shared read	Option<Vec<HistoryItem>> for std/sci; no programmer history
+Unit_currentCategory/m_fromType/m_toType/m_currentDisplay/m_returnDisplay/m_*HasDecimal/m_switchedActive	u09	UnitConverter	instance editor state	ClearValues (cpp:847-852) does NOT touch m_returnDisplay	value owned	struct fields; exact clear-boundary preserved
+Unit_ratioMap/m_categoryToUnits	m09	u09	Instance caches	built by ResetCategoriesAndRatios (cpp:722-768); reloadable	value owned	HashMap<Unit,HashMap<Unit,ConversionData>> with id-only Hash
+Unit_quoteConversions/unquoteConversions	u09	UnitConverter ctor	num下 $-style maps	built in ctor (cpp:52-68)	value owned	struct fields (were "global mutable" in C++)
+ExprCmd_COpndCommand	m_expr	m07	per-object state (fNegative/fSciFmt/fDecimal/fInitialized/token/value)	mutated Append/ToggleSign/RemoveFromEnd	value owned	enum+Vec<u32> command list; value snapshot
+ExprCmd_CUnaryCommand/m_command pair	m_expr	m07	1-2 opcodes; SetCommands clears+push	value owned	[i32;2]+len
+CEngine_m_maxTrigonometricNum	u05/u06	CCalcEngine	instance; ctor `RationalMath::Pow(10,100)` (calc.cpp:106)	never mutated	value owned
+CEngine_m_numberString	u05/u06	CCalcEngine	instance	written by DisplayNum (scidisp.cpp:102,111); read IsInputEmpty (calc.cpp:72); radix-10 validation (scidisp.cpp:117-120)	value owned	String field
+CEngine_m_decimalSeparator/m_groupSeparator/m_decGrouping	u05/u06	CCalcEngine	instance	rewired by SettingsChanged (calc.cpp:157-171) — NOT startup-only	value owned	char/Vec<u32> fields; mid-session change must propagate (incl. ratpak context write calc.cpp:163)
+Mgr_m_displayCallback	u08	CalculatorManager	set once in ctor (h:48)	never; engine callbacks arrive INTO manager (engine holds manager as its ICalcDisplay) — self-referential ownership	graph-2 detail: Arc<Mutex<dyn ICalcDisplay>> clone shared to engines
+Mgr_m_inHistoryItemLoadMode	u08	CalculatorManager	instance bool	toggled by SetInHistoryItemLoadMode (cpp:599-602)	value owned	bool
+Mgr_m_isExponentialFormat	u08	CalculatorManager	instance bool	CommandFE toggle (cpp:302), Reset (138)	value owned	bool
+Mgr_m_currentDegreeMode	u08	CalculatorManager	instance	CommandDEG/RAD/GRAD (cpp:244); lazy default CommandNULL (cpp:560-567)	value owned
+Mgr_m_resourceProvider/m_displayCallback consts	u08	CalculatorManager	ctor args, const for life	none	shared read	trait objects in ctor
+History_m_pHistoryDisplay/m_pCalcDisplay	u06	CHistoryCollector	ctor refs; used CompleteHistoryLine (History.cpp:290-302)	shared	read trait arcs
+History_m_bLastOpndBrace/m_decimalSymbol	u06	CHistoryCollector	instance	reset ReinitHistory (History.cpp:28-42); SetDecimalSymbol (calc.cpp:186)	value owned
+ExprCmd_CBinaryCommand	m07	m07	single opcode	mutated SetCommand (cpp:91-97)	value owned	i32
+ExprCmd_CParentheses	m07	m07	single opcode	value owned	i32
+ExprCmd_ISerializeCommandVisitor	m07	m07	serialization visitor surface (ExpressionCommand.h:79-86)	Accept double-dispatch → Rust enum match on command kind
+UnitCurrent_returnHasDecimal	u09	unit converter	reset by ClearValues (cpp:850) in contrast to m_returnDisplay which is NOT (cpp:847-852)	value owned	bool; keep the asymmetric clear boundary
+CalcInput_state_calc_numsec	m05	u05	CalcNumSec per-section state	mutated digit ops; m_isNegative private	value owned	struct {value:String, negative: bool}
+CalcInput_state	m05	u05	mhasExponent/hasDecimal/decPtIndex/decSymbol	mutated per digit/bs/dec value owned	struct fields; MAX_STRLEN=84 cap
+RNG_m_randomGeneratorEngine/m_distr	u05/u06	CCalcEngine	lazy mt19937+uniform_real_distribution	lifetime instance	value owned	Option<Rng> (rand crate) behind trait w/ fixed seed path TBD at pilot u06
