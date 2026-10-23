@@ -12,7 +12,12 @@ function sizeFor(text: string): "lg" | "md" | "sm" | "xs" {
 
 export function Display({ state }: { state: EngineState }) {
   return (
-    <div className="calc__display">
+    <div className="calc__display" tabIndex={-1}>
+      {state.memory !== undefined && (
+        <span className="calc__memflag" aria-label="Memory holds a value">
+          M
+        </span>
+      )}
       <div className="calc__expression" role="presentation" aria-hidden="true">
         {state.expression}
       </div>

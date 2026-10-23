@@ -84,10 +84,12 @@ export class MockEngineApi implements EngineApi {
   public step(state: EngineState, command: Command): EngineState {
     if (state.isError) {
       // hard-error lock: only ClearAll (or typing a digit) recovers, mirroring Windows calc
-      if (command === CommandId.ClearAll) return { ...initial };
+      if (command === CommandId.ClearAll) {
+        return state.memory !== undefined ? { ...initial, memory: state.memory } : { ...initial };
+      }
       if (digitValue(command) !== null) {
-        // fall through to fresh-state digit entry
-        state = { ...initial };
+        // fall through to fresh-state digit entry (memory is preserved)
+        state = state.memory !== undefined ? { ...initial, memory: state.memory } : { ...initial };
       } else {
         return state;
       }
@@ -218,8 +220,31 @@ export class MockEngineApi implements EngineApi {
     }
 
     // ---- clear ----
-    if (command === CommandId.ClearAll) return { ...initial };
+    if (command === CommandId.ClearAll) {
+      // C clears state but NOT memory (MC clears memory; Windows calc behavior)
+      return state.memory !== undefined ? { ...initial, memory: state.memory } : { ...initial };
+    }
     if (command === CommandId.ClearEntry) return { ...state, display: "0", awaitingEntry: true };
+
+    // ---- memory (CEngine memory workflow: M+/M− act on the current display value) ----
+    if (command === CommandId.MemoryClear) {
+      const { memory: _dropped, ...rest } = state;
+      return rest;
+    }
+    if (command === CommandId.MemoryRecall) {
+      if (state.memory === undefined) return state;
+      // recalled value replaces the entry; a following digit starts fresh (Windows calc)
+      return { ...state, display: fmt(state.memory), awaitingEntry: true, isError: false };
+    }
+    if (command === CommandId.MemoryStore) {
+      return { ...state, memory: Number(state.display) };
+    }
+    if (command === CommandId.MemoryAdd) {
+      return { ...state, memory: (state.memory ?? 0) + Number(state.display) };
+    }
+    if (command === CommandId.MemorySubtract) {
+      return { ...state, memory: (state.memory ?? 0) - Number(state.display) };
+    }
 
     return state;
   }

@@ -1,42 +1,75 @@
 /* Hallmark · component-system: calculator-instrument · genre: technical (utilitarian instrument)
- * theme: Terminal-family custom · paper-band: dark (L 19%) · accent: phosphor (152° green)
- * fonts: JetBrains Mono Variable (display digits) + Inter Variable (body)
- * states shipped: default · hover · focus-visible · active · disabled  (+ error surface on display)
- * stamp axes for future Hallmark runs: dark paper / mono display / cool accent
+ * theme: user-directed — matches Windows Calculator dark palette (neutral paper band,
+ *        uniform key surfaces, single blue accent on `=`)
+ * fonts: Segoe UI Variable / Inter (neutral grotesk; mono flavor dropped by user direction)
+ * states shipped: default · hover · focus-visible · active · disabled (+ error surface on display)
+ * stamp axes: dark neutral paper / grotesk display / single cool accent
  */
 :root {
-  /* paper band — cool, near-black instrument surface */
-  --color-paper: oklch(19% 0.014 265);
-  --color-paper-2: oklch(22% 0.016 265);
-  --color-paper-3: oklch(26% 0.018 265);
-  --color-paper-4: oklch(31% 0.02 265);
+  /* paper band — neutral near-black (Windows calc dark) */
+  --color-paper: oklch(17% 0.004 270);        /* window background */
+  --color-paper-2: oklch(12% 0.004 270);      /* display interior (darker than window) */
+
+  /* key surfaces — XAML-exact: white-alpha fills over the window (CalcButton*FillColor*Brush,
+   * App.xaml dark theme). Digits use the Default tier, operators the Alt tier; note the real
+   * app DARKENS digit keys on hover and LIGHTENS operator keys on hover. */
+  --key-num:          rgb(255 255 255 / 0.125);
+  --key-num-hover:    rgb(255 255 255 / 0.0852);
+  --key-num-pressed:  rgb(255 255 255 / 0.0359);
+  --key-op:           rgb(255 255 255 / 0.0852);
+  --key-op-hover:     rgb(255 255 255 / 0.1256);
+  --key-op-pressed:   rgb(255 255 255 / 0.0852);
+  --color-key: oklch(27% 0.005 270);          /* legacy solid fallback (nav/memstrip hover) */
+  --color-key-hi: oklch(33% 0.006 270);
 
   /* ink */
-  --color-ink: oklch(94% 0.005 265);
-  --color-ink-dim: oklch(62% 0.012 265);
-  --color-ink-faint: oklch(45% 0.012 265);
+  --color-ink: oklch(100% 0 0);
+  --ink-pressed: rgb(255 255 255 / 0.786);    /* XAML TextFillColorSecondary */
+  --color-ink-dim: oklch(72% 0.003 270);     /* memory strip text */
+  --color-ink-faint: oklch(56% 0.003 270);   /* expression readout, disabled keys */
+  --color-ink-disabled: oklch(46% 0.002 270);
 
-  /* accent — phosphor; digits stay ink-white, the accent is reserved for function */
-  --color-accent: oklch(84% 0.19 152);
-  --color-accent-hi: oklch(90% 0.16 152);
-  --color-accent-ink: oklch(23% 0.07 152);
+  /* accent — Windows blue, used ONLY by `=` */
+  --color-accent: oklch(79% 0.13 237);
+  --color-accent-hi: oklch(84% 0.11 237);
+  --color-accent-ink: oklch(20% 0.05 237);
   --color-error: oklch(72% 0.19 25);
 
   --color-focus: var(--color-accent);
 
-  /* type */
-  --font-display: "JetBrains Mono Variable", ui-monospace, "Cascadia Mono", Consolas, monospace;
-  --font-body: "Inter Variable", system-ui, "Segoe UI", sans-serif;
+  /* display chrome */
+  --color-display-border: oklch(100% 0 0 / 0.7);
+  --color-display-border-focus: oklch(100% 0 0 / 0.95);
 
-  /* display scale */
+  /* scrollbar (Fluent-style overlay) */
+  --color-scrollbar: oklch(100% 0 0 / 0.14);
+  --color-scrollbar-hi: oklch(100% 0 0 / 0.26);
+
+  /* fixed chrome heights (XAML: TitleBar 32, HamburgerHeight 48; nav flyout anchors below) */
+  --tbar-h: 32px;
+  --header-h: 48px;
+
+  /* type — the real Windows system font (exact match to the OS calculator; no webfonts) */
+  --font-display: "Segoe UI Variable Display", "Segoe UI", "Segoe UI Variable Text", system-ui, sans-serif;
+  --font-body: "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
+
+  /* LaTeX result face — bundled woff2 (src/fonts), display line only; Segoe falls back for
+   * any glyph the math face lacks (e.g. Arabic-Indic digits when the engine formats locales). */
+  --font-math: "Computer Modern", "Segoe UI Variable Display", "Segoe UI", system-ui, sans-serif;
+
+  /* display scale — XAML AdaptiveTrigger caps: ResultsS ≤26px (h<640), ResultsM/L ≤46px (h≥640);
+   * the real template uses Light weight results, capped then auto-shrunk-to-fit */
   --text-xs: 0.75rem;
   --text-sm: 0.875rem;
   --text-md: 1rem;
-  --text-lg: 1.25rem;
-  --text-display-lg: clamp(2.5rem, 6vw, 3.75rem);
-  --text-display-md: clamp(2rem, 5vw, 3rem);
-  --text-display-sm: clamp(1.5rem, 4vw, 2rem);
-  --text-display-xs: clamp(1.2rem, 3.5vw, 1.6rem);
+  --text-key: 1.125rem;                       /* XAML NumericButtonStyle18 (small trigger) */
+  --text-key-op: 0.875rem;                    /* XAML CalcOperatorCaptionSize 14 */
+  --text-key-ctrl: 1rem;                      /* XAML CE/C/⌫ FontSize 16 */
+  --text-title: 1.25rem;                      /* XAML SubtitleTextBlockStyle 20 semibold */
+  --text-display-lg: clamp(1.45rem, 6vw, 1.625rem);
+  --text-display-md: clamp(1.15rem, 5vw, 1.3rem);
+  --text-display-sm: clamp(1rem, 4.5vw, 1.125rem);
+  --text-display-xs: clamp(0.95rem, 4vw, 1rem);
 
   /* 4-pt spacing scale */
   --space-3xs: 4px;
@@ -47,19 +80,23 @@
   --space-lg: 32px;
 
   /* geometry */
-  --radius-sm: 4px;
-  --radius-md: 6px;
-  --rule: 1px solid oklch(100% 0 0 / 6%);
+  --radius-key: 4px;                          /* WinUI ControlCornerRadius */
+  --radius-panel: 8px;
+  --rule: 1px solid oklch(100% 0 0 / 8%);
 
   /* motion */
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
   --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
   --dur-fast: 90ms;
   --dur: 150ms;
+}
 
-  /* functional colours used by the keypad tiers */
-  --key-primary: var(--color-paper-3);
-  --key-primary-hi: var(--color-paper-4);
-  --key-secondary: var(--color-paper-2);
-  --key-secondary-hi: var(--color-paper-3);
+/* XAML ResultsM/L breakpoint: window height ≥640 caps display at 46px */
+@media (min-height: 640px) {
+  :root {
+    --text-display-lg: clamp(2.25rem, 6vw, 2.875rem);
+    --text-display-md: clamp(1.75rem, 5vw, 2.5rem);
+    --text-display-sm: clamp(1.4rem, 4vw, 1.9rem);
+    --text-display-xs: clamp(1.1rem, 3.5vw, 1.5rem);
+  }
 }

@@ -34,6 +34,11 @@ export const CommandId = {
   ClearAll: "ClearAll",
   ClearEntry: "ClearEntry",
   Backspace: "Backspace",
+  MemoryClear: "MemoryClear",
+  MemoryRecall: "MemoryRecall",
+  MemoryAdd: "MemoryAdd",
+  MemorySubtract: "MemorySubtract",
+  MemoryStore: "MemoryStore",
 } as const;
 
 export type CommandId = (typeof CommandId)[keyof typeof CommandId];
@@ -50,6 +55,8 @@ export interface EngineState {
   /** True when the next digit starts a fresh entry (after =, after an operator, or on
    *  operator typing); false while the user is still building the current entry. */
   awaitingEntry: boolean;
+  /** Stored memory value; `undefined` when memory is empty (drives the M indicator). */
+  memory?: number;
   // ---- internal, fully serializable (the Rust engine owns these once it lands) ----
   /** Left operand of a pending binary op. */
   accumulated?: number;

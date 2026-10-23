@@ -105,6 +105,51 @@ describe("percent", () => {
   });
 });
 
+describe("memory", () => {
+  test("MS then MR round-trips the value", () => {
+    const stored = run([CommandId.Digit4, CommandId.Digit2, CommandId.MemoryStore]);
+    expect(stored.memory).toBe(42);
+    const afterClear = engine.step(stored, CommandId.ClearAll);
+    const recalled = engine.step(afterClear, CommandId.MemoryRecall);
+    expect(recalled.display).toBe("42");
+  });
+  test("M indicator follows memory state", () => {
+    expect(engine.initial().memory).toBeUndefined();
+    const stored = run([CommandId.Digit7, CommandId.MemoryStore]);
+    expect(stored.memory).toBe(7);
+    expect(engine.step(stored, CommandId.MemoryClear).memory).toBeUndefined();
+  });
+  test("M+ accumulates display into memory", () => {
+    const s = run([
+      CommandId.Digit1, CommandId.Digit0, CommandId.MemoryStore,
+      CommandId.ClearAll,
+      CommandId.Digit5, CommandId.MemoryAdd,
+    ]);
+    expect(s.memory).toBe(15);
+  });
+  test("M− subtracts display from memory", () => {
+    const s = run([
+      CommandId.Digit1, CommandId.Digit0, CommandId.MemoryStore,
+      CommandId.ClearAll,
+      CommandId.Digit3, CommandId.MemorySubtract,
+    ]);
+    expect(s.memory).toBe(7);
+  });
+  test("M+ with empty memory starts from 0", () => {
+    const s = run([CommandId.Digit8, CommandId.MemoryAdd]);
+    expect(s.memory).toBe(8);
+  });
+  test("MR with result pending participates in arithmetic", () => {
+    const stored = run([CommandId.Digit2, CommandId.Digit0, CommandId.MemoryStore, CommandId.ClearAll]);
+    const recalled = engine.step(stored, CommandId.MemoryRecall);
+    expect(engine.step(recalled, CommandId.Divide).display).toBe("20");
+  });
+  test("memory keys ignored while in error state", () => {
+    const err = run([CommandId.Digit1, CommandId.Divide, CommandId.Digit0, CommandId.Equals]);
+    expect(engine.step(err, CommandId.MemoryStore)).toBe(err);
+  });
+});
+
 describe("hard error paths", () => {
   test("divide by zero", () => {
     const s = run([CommandId.Digit1, CommandId.Divide, CommandId.Digit0, CommandId.Equals]);
