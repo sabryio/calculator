@@ -6,6 +6,17 @@
 (placeholder — run `migration/status.ps1`)
 
 ## Now
+- Step 4 (machinery + pilots) executed 2026-10-23: `engine/` crate created (Cargo lints
+  forbid-unsafe + clippy all/pedantic, `rust-toolchain.toml` pin, `rustfmt.toml`,
+  CI `.github/workflows/engine.yml`: fmt / clippy -D / test / release build, all -locked
+  where sensible). PILOTS u01 (NumberFormattingUtils) + u02 (Command/EngineStrings/
+  RadixType/IResourceProvider) ported → 2 fresh-context reviewers (fidelity + operability)
+  → ALL findings fixed (CommandType enum added, cross-space duplicate/gap additive test,
+  toolchain file renamed to `engine/rust-toolchain.toml`, engine/.gitignore /target/,
+  license headers, PORTING §3 exponent rule corrected to min-2 from golden literals,
+  §5 structural-expect case, §6 IResourceProvider String decision, §9 test-placement split,
+  ORACLE.md placement alignment). Final gates green: 8/8 cargo tests, clippy -D warnings,
+  fmt, release build. Landing: commit `engine/` + workflow + guide patches.
 - Step 3 (guides) executed 2026-10-23: source walk done (3 read-only explorers over Ratpak /
   CEngine / Manager+Converter), PORTING.md + STATE_MAP.tsv + DEPENDENCIES.tsv written from
   file:line evidence, 2 fresh-context reviewers returned findings, ALL findings applied
@@ -19,10 +30,9 @@
 
 ## Next
 1. Owner reads PORTING.md (skill Step 3 gate requirement), then:
-2. Step 4: Rust workspace machinery at `engine/` (workspace Cargo.toml + .rust-toolchain pin +
-   lints + CI config per references/rust-porting.md §1) + pilot port of u01 (num-formatting)
-   + u02 (command enums/resources) through the full per-unit loop.
-3. Wave 2 kickoff: u03 ratpak core (the blockers in PORTING §2/§7 apply).
+2. Wave 2 kickoff: u03 ratpak core through the per-unit loop (the blockers in PORTING §2/§7
+   apply: taylor macros, ratconst transcription, Context construction-order invariant).
+   Wave-2 template = the pilot layout (engine/src/<unit>.rs + tests/<cpp_name>.rs).
 
 ## Blockers
 - Engine port: deferred by owner (React UI first) — NOT blocked technically.
@@ -71,3 +81,16 @@
   preserved pending owner decisions.
 - 2026-10-23 — last_verified_commit updated: 79e1ac5 → fecf47a (guides verified against the
   tree as of fecf47a; no SOURCE movement).
+- 2026-10-23 — STEP 4 + PILOTS LANDED. Machinery: `engine/` crate (lints forbid-unsafe,
+  clippy all+pedantic), `engine/rust-toolchain.toml` (NOTE: rustup ignores dot-prefixed
+  `.rust-toolchain.toml` — lesson from reviewer B), `engine/rustfmt.toml`,
+  `engine/.gitignore`, CI workflow. Pilots: u01 (number_formatting_utils.rs) and
+  u02 (command.rs/engine_strings.rs/calculator_resource.rs/radix_type.rs) ported mechanically;
+  oracle slice CalculatorManagerTest.cpp:978-1076 → engine/tests/calculator_manager_test.rs
+  (5/21 methods; 16 remain with u08 — must EXTEND this file). Two fresh-context reviewers
+  (fidelity ses_e95dd7... / operability ses_e95d4f...) returned 10+ findings, all fixed
+  same-session. Final gates: 8/8 tests, clippy -D warnings (all+pedantic), fmt, release —
+  all green. Inventory u01/u02 → reviewed; u10 no-phase-overlap note added.
+- 2026-10-23 — PILOT CORRECTION in guides: MSVC scientific exponent is min-2-digit
+  (`e+03`), NOT 3-digit as reviewer claimed at Step 3; golden literals arbitrated; PORTING
+  §3 patched; LESSONS standing rule 4 states the rule-of-evidence.

@@ -47,3 +47,14 @@ otherwise — raising any of these requires a human call, not a port-time fix)
    SOURCE comments/state machine implies — never panic-in-release.
 3. (2026-10-23) Process-wide C++ statics become explicit context objects owned above the
    units (PORTING.md §7); no new global mutable state in Rust.
+4. (2026-10-23) PILOT CORRECTION — the Step-3 reviewers' claim that MSVC `scientific`
+   prints 3-digit exponents (`e+023`) is WRONG: the oracle golden literals
+   (CalculatorManagerTest.cpp:1061-1075: `e+03`, `e-09`, `e+12`) prove minimum-2-digit
+   zero-padding (C++11/U CRT iostreams; 3 digits naturally at |exp| ≥ 100). PORTING §3
+   re-verified and patched. Lesson: a file:line citation is not proof of behavior — golden
+   literals are. Any future format-behavior rule must cite executable evidence, not a
+   reviewer's recollection.
+5. (2026-10-23) `IResourceProvider` port shape decided at the pilot gate: trait returns a
+   total `String` per the C++ total-function contract; miss-empty semantics stay a
+   property of the engine string map (PORTING §4), provider fallbacks stay out of the
+   engine. Recorded in PORTING §6; later units must not reintroduce `Option<String>`.

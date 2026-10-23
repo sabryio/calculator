@@ -1,0 +1,15 @@
+# Rust port of the Windows Calculator CalcManager engine (behavior-preserving migration).
+# Migration record: ../migration/PLAN.md · guides: ../migration/PORTING.md · status: ../migration/STATUS.md
+[package]
+name = "engine"
+version = "0.1.0"
+edition = "2021"
+publish = false
+description = "Rust port of the Windows Calculator CalcManager engine core"
+
+[lints.rust]
+unsafe_code = "forbid"
+
+[lints.clippy]
+all = "warn"
+pedantic = "warn"

@@ -79,7 +79,9 @@ out of reach and recorded as an accepted limitation in PLAN.md.
 ## Protection rule
 - Oracle test files are translated to Rust **with identical assertion values**; the C++→Rust
   test mapping is reviewed by the two reviewers (not the implementer) on every unit.
-- Translated Rust tests land under `engine/<unit>/tests/` (e.g. `crate::rational::tests`).
+- Translated Rust tests land per PORTING.md §9: per-C++-source integration files at
+  `engine/tests/<cpp_name>.rs` (e.g. `engine/tests/rational_test.rs`), additive (non-C++)
+  tests in-module as `#[cfg(test)]`.
 - asserted-behavior drift: any time a test's expected value or coverage shrinks during port,
   STOP; report in `LESSONS.md` with a status of `blocked`; repairs require human approval.
 - No waiver label is applied to any of these tests; waivers are granted only by the project

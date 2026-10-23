@@ -128,9 +128,11 @@ asserted by UnitConverterTest golden values):**
   mode); never implement literal significant-digit rounding at that call name.
 - SOURCE `ToScientificNumber(double)` (cpp:74-79) emits MSVC `scientific`: mantissa from the
   stream's default precision (6 digits after the point), exponent always signed and
-  **3-digit zero-padded** (`1.234567e+023`). Rust recipe: format mantissa with `format!("{:.6e}", v)`
-  then re-render the exponent as `e±NNN` (zero-pad to 3, always sign) and assert against the
-  C++ golden strings from UnitConverterTest.
+  **zero-padded to a minimum of TWO digits** (C++11/U CRT iostreams; verified by the golden
+  literals CalculatorManagerTest.cpp:1061-1075: `e+03`, `e-09`, `e+12` — three digits occur
+  naturally for |exp| ≥ 100). Rust recipe: `format!("{number:.6e}")`, then re-render the
+  exponent as `e±NN` (zero-pad to 2 min, always sign) and assert against the C++ golden
+  strings from UnitConverterTest.
 
 ## 4. Error model map (CalcErr.h + engine)
 
@@ -204,6 +206,12 @@ asserted by UnitConverterTest golden values):**
 - Mutable globals à la C++ (see §7 mapping policy) — the *only* `static`s allowed are `OnceLock`
   for read-only tables (operatorStringTable, g_sids, DIGITS).
 
+**Sanctioned non-test `expect` (4th case, pilot gate 2026-10-23):** structural expects over
+Rust `format!`/parser invariants are allowed where the C++ analog has NO failure path and
+the doc comment names the SOURCE basis (golden literals or invariant line) — reviewers check
+the doc, not the call. This does NOT license general `unwrap`, nor expects over data that
+can plausibly be malformed at runtime.
+
 ## 6. Interface seams (C++ → Rust traits, verbatim surface)
 
 **Command ID spaces (u02 BLOCKER):** SOURCE has FOUR overlapping numeric spaces — engine
@@ -219,7 +227,7 @@ value equality across spaces is load-bearing behavior.
 |---|---|---|
 | `ICalcDisplay` (11 methods, ICalcDisplay.h:9-25) | `pub trait ICalcDisplay { ... }` object-safe; engine holds `Arc<Mutex<dyn ICalcDisplay>>` non-optional (mgr always provides) | **Global rule: the engine NEVER null-checks the display** — SOURCE's one missing guard (scicomm.cpp:566-569) has a twin at History.cpp:295 (`OnHistoryItemAdded`); port both call paths unconditionally and LESSONS records the pair | CalendarManager forwards to React via Tauri events later |
 | `IHistoryDisplay` (IHistoryDisplay.h:9-17) | same pattern (`Arc<Mutex<dyn IHistoryDisplay>>`); NOTE: programmer mode passes null (CalculatorManager.cpp:196-208) → Rust uses `Option<…>` here only | u08 |
-| `IResourceProvider` (CalculatorResource.h:10-25) | `pub trait ResourceProvider { fn get_cengine_string(&self, id: &str) -> Option<String>; }` | u02 knob; fallbacks: `.`/`,`/`"3;0"` (EngineResourceProvider.cs:55-58) become Rust-side defaults |
+| `IResourceProvider` (CalculatorResource.h:10-25) | `pub trait IResourceProvider { fn get_cengine_string(&self, id: &str) -> String; }` — **2-reviewer gate decision (pilot u01/u02, 2026-10-23): TOTAL function, `String`, not `Option`**; miss-empty semantics belong to the engine string map (§4 `operator[]` rule) and the `.`/`,`/`"3;0"` fallbacks (EngineResourceProvider.cs:55-58) stay OUT of the engine | u02 knob |
 | `IConverterDataLoader` / `ICurrencyConverterDataLoader` (UnitConverter.h:177-201) | sync traits (`fn load_ordered_ratios(...)`) — the C++ PPL `task<T>` choreography is not an engine contract post-decision; the *UI-layer networking* stays outside the engine. Logged in Plan divergence table. | u09 |
 | `IViewModelCallback` equivalents | fold into `ICalcDisplay`-style VM callback trait (`unit_conv::VmCallback`) | u09 |
 
@@ -267,10 +275,14 @@ of post-init Context constant fields may use
 
 ## 9. Test placement & oracle mapping
 
-- Rust tests live inside the crate module of the port: `#[cfg(test)] mod tests` at the file
-  bottom, named `YYYY_TEST_METHOD` → `#[test] fn <same_name>` (meaning: each C++ TEST_METHOD
-  maps 1:1 to a Rust `#[test]` with the same human name — the mapping table is the oracle
-  evidence).
+- Rust tests live in TWO places, by origin: **(a) translated C++ TEST_METHODs** go in the
+  per-source integration file (`engine/tests/<cpp_name>.rs`, table below) — one file per C++
+  test source, methods in SOURCE order, partial-port slices marked with a header stating the
+  total/porting/remaining method counts; **(b) ADDITIVE shape/property tests** (no C++
+  counterpart) live in-module as `#[cfg(test)] mod tests` with a
+  `// ADDITIVE (not a C++ TEST_METHOD translation)` marker. Each C++ TEST_METHOD
+  maps 1:1 to a Rust test with the mechanically-cased same human name — the mapping table
+  is the oracle evidence.
 - One relationship file per C++ test source: `engine/tests/<cpp_name>.rs` — RationalTest →
   `engine/tests/rational_test.rs`, CalcInputTest → `engine/tests/calc_input_test.rs`,
   CalcEngineTests → `engine/tests/calc_engine_tests.rs`, CalculatorManagerTest →

@@ -1,0 +1,33 @@
+name: engine
+
+# CI for the Rust CalcManager port (engine/).
+# Migration record: migration/PLAN.md — behavior-preservation gates:
+# fmt + clippy(-D warnings over all+pedantic) + cargo test.
+on:
+  push:
+    paths: ["engine/**", ".github/workflows/engine.yml"]
+  pull_request:
+    paths: ["engine/**", ".github/workflows/engine.yml"]
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: engine
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: engine
+      - name: Format
+        run: cargo fmt --all --check
+      - name: Clippy (all + pedantic, deny warnings)
+        run: cargo clippy --all-targets --locked -- -D warnings
+      - name: Tests (oracle + additive)
+        run: cargo test --locked
+      - name: Release build
+        run: cargo build --release --locked
