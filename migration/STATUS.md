@@ -94,3 +94,4 @@
 - 2026-10-23 — PILOT CORRECTION in guides: MSVC scientific exponent is min-2-digit
   (`e+03`), NOT 3-digit as reviewer claimed at Step 3; golden literals arbitrated; PORTING
   §3 patched; LESSONS standing rule 4 states the rule-of-evidence.
+- 2026-10-23 — landed as commit 80c7df1; last_verified_commit: fecf47a → 80c7df1.
